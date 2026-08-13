@@ -1,0 +1,45 @@
+# k8s/api.yaml
+
+# 1. API Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+  labels:
+    app: task-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: task-api
+  template:
+    metadata:
+      labels:
+        app: task-api
+    spec:
+      containers:
+        - name: task-api
+          image: task-api:v1
+          # Crucial for Kind: Tells K8s to use the locally loaded image instead of trying to pull from Docker Hub
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+---
+# 2. API External Service (NodePort)
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-api-service
+spec:
+  type: NodePort
+  selector:
+    app: task-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30080

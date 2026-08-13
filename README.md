@@ -1,10 +1,47 @@
 # Task & Metrics API (FastAPI + Redis)
 
-A lightweight, production-ready RESTful API built with **FastAPI** and **Redis**, fully containerized using **Docker** and orchestrated with **Docker Compose**. Designed with DevOps best practices, including multi-stage image builds, environment variable configuration, input validation, and volume persistence.
+A lightweight, production-ready RESTful API built with **FastAPI** and **Redis**. Fully containerized with **Docker**, orchestrated locally via **Docker Compose**, and deployable to **Kubernetes** using **Kind**.
 
 ---
 
 ## 🏗️ Architecture Overview
+
+### Kubernetes Architecture (Kind)
+
+```text
+                               [ Windows / WSL 2 ]
+                               http://localhost:8000
+                                         │
+                                         ▼
++---------------------------------------------------------------------------------+
+| Kind Cluster (dev-cluster)                                                      |
+|                                                                                 |
+|   +-------------------------------------------------------------------------+   |
+|   | Task API Service (NodePort: 30080 -> Port: 8000)                        |   |
+|   +-------------------------------------------------------------------------+   |
+|                                         │                                       |
+|                                         ▼                                       |
+|   +-------------------+       +--------------------+                            |
+|   | Task API Pod      | ----> | Redis Service      | (ClusterIP: 6379)          |
+|   | (task-api:v1)     |       | (DNS: redis)       |                            |
+|   +-------------------+       +--------------------+                            |
+|                                         │                                       |
+|                                         ▼                                       |
+|                               +--------------------+                            |
+|                               | Redis Pod          |                            |
+|                               | (redis:7-alpine)   |                            |
+|                               +--------------------+                            |
+|                                         │                                       |
+|                                         ▼                                       |
+|                               +--------------------+                            |
+|                               | PersistentVolume   |                            |
+|                               | Claim (redis-pvc)  |                            |
+|                               +--------------------+                            |
++---------------------------------------------------------------------------------+
+```
+
+---
+### Docker Compose Architecture 
 
 ```text
                +-------------------------------------------+
@@ -27,53 +64,73 @@ Client Request |   +-----------------+   +-------------+   |
 
 ## ✨ Features
 
-- **Visit Counter & Metrics:** Tracks overall endpoint hits persisted in Redis.
-- **Task Management:** REST endpoints to create, list, and fetch tasks by ID.
-- **Input Validation:** Strict data models powered by Pydantic (prevents empty/blank task titles).
-- **Multi-Stage Dockerfile:** Optimized runtime image size using `python:3.11-slim`.
-- **Data Persistence:** Uses Docker named volumes to prevent data loss upon container termination.
-- **Auto-Generated Docs:** Swagger UI available natively at `/docs`.
+- **Metrics & Persistence:** Total visit counter persisted in Redis across container restarts.
+- **Task Management:** REST endpoints to create, retrieve, and list task IDs.
+- **Input Validation:** Pydantic models preventing empty or whitespace-only titles.
+- **Multi-Stage Docker Build:** Optimized image footprint using `python:3.11-slim`.
+- **Dual Orchestration:** Run locally with either **Docker Compose** or **Kubernetes (Kind)**.
 
 ---
 
-## 🛠️ Tech Stack
-
-* **Language:** Python 3.11
-* **Framework:** FastAPI / Uvicorn
-* **Database:** Redis 7 (In-memory & Persistent Snapshotting)
-* **Containerization:** Docker & Docker Compose
-* **Validation:** Pydantic v2
-
----
-
-## 🚀 Getting Started
+## 🚀 Getting Started with Kubernetes (Kind)
 
 ### Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose)
-- [Git](https://git-scm.com/)
+- [Docker Desktop](https://www.docker.com/) with WSL 2 integration
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- [kind](https://kind.sigs.k8s.io/)
 
-### Installation & Execution
-
+### Local Kubernetes Deployment
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/AVC-09/task-metrics-api.git
    cd task-metrics-api
    ```
 
-2. **Start the application stack:**
+2. **Create the Kind cluster:**
    ```bash
-   docker compose up -d
+   kind create cluster --name dev-cluster --config k8s/kind-config.yaml
    ```
 
-3. **Verify running containers:**
+3. **Build and load the Docker image into Kind:**
    ```bash
-   docker compose ps
+   docker build -t task-api:v1 .
+   kind load docker-image task-api:v1 --name dev-cluster
    ```
 
-4. **Access the API:**
+4. **Deploy Redis resources (PVC, Deployment, Service):**
+   ```bash
+   kubectl apply -f k8s/redis.yaml
+   ```
+
+5. **Deploy API resources (Deployment, NodePort Service):**
+   ```bash
+   kubectl apply -f k8s/api.yaml
+   ```
+
+6. **Verify deployment status:**
+   ```bash
+   kubectl get pods
+   kubectl get svc
+   ```
+
+7. **Access the application:**
    - **Metrics Endpoint:** [http://localhost:8000/](http://localhost:8000/)
-   - **Interactive API Docs (Swagger):** [http://localhost:8000/docs](http://localhost:8000/docs)
+   - **Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+## 🐳 Alternative: Running with Docker Compose
+
+If you prefer to run using Docker Compose instead of Kubernetes:
+
+```bash
+# Start services
+docker compose up -d
+
+# Stop services and remove volumes
+docker compose down -v
+```
 
 ---
 
@@ -88,24 +145,15 @@ Client Request |   +-----------------+   +-------------+   |
 
 ---
 
-## 🧪 Testing Persistence
+## 🧹 Kubernetes Cleanup
 
-1. Create a few tasks via `/docs` or `curl`.
-2. Stop and remove the containers:
-   ```bash
-   docker compose down
-   ```
-3. Restart the containers:
-   ```bash
-   docker compose up -d
-   ```
-4. Query `GET /` or `GET /tasks/`. Notice your visit count and created tasks remain intact thanks to the `redis-data` Docker volume.
+To tear down the Kubernetes resources or delete the cluster:
 
----
-
-## 🧹 Cleanup
-
-To stop the services and remove networks/volumes:
 ```bash
-docker compose down -v
+# Delete Kubernetes resources
+kubectl delete -f k8s/api.yaml
+kubectl delete -f k8s/redis.yaml
+
+# Delete the Kind cluster
+kind delete cluster --name dev-cluster
 ```
