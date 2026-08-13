@@ -57,7 +57,7 @@ Client Request |   +-----------------+   +-------------+   |
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/tu-usuario/task-metrics-api.git](https://github.com/tu-usuario/task-metrics-api.git)
+   git clone https://github.com/AVC-09/task-metrics-api.git
    cd task-metrics-api
    ```
 
