@@ -40,8 +40,8 @@ A lightweight, production-ready RESTful API built with **FastAPI** and **Redis**
 +---------------------------------------------------------------------------------+
 ```
 
----
-### Docker Compose Architecture 
+
+### Docker Compose Architecture (Alternatively)
 
 ```text
                +-------------------------------------------+
