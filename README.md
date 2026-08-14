@@ -107,17 +107,31 @@ cd task-metrics-api
 <details>
 <summary><b>Option A: Deploy using Raw Kubernetes Manifests</b></summary>
 
+#### Deploy
 ```bash
 kubectl apply -f k8s/redis.yaml
 kubectl apply -f k8s/api.yaml
+```
+
+#### Cleanup
+```bash
+kubectl delete -f k8s/api.yaml
+kubectl delete -f k8s/redis.yaml
 ```
 </details>
 
 <details>
 <summary><b>Option B: Run with Docker Compose</b></summary>
 
+#### Deploy
 ```bash
 docker compose up -d
+```
+
+#### Cleanup
+```bash
+# Stop containers and remove volumes (-v)
+docker compose down -v
 ```
 </details>
 
