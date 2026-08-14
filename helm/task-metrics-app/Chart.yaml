@@ -1,0 +1,6 @@
+apiVersion: v2
+name: task-metrics-app
+description: Helm chart for Task & Metrics API with Redis
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

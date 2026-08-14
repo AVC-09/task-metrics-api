@@ -1,0 +1,20 @@
+# Global Configuration
+replicaCount: 1
+
+# API Configuration
+api:
+  image:
+    repository: task-api
+    tag: v1
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 8000
+    nodePort: 30080
+
+# Redis Configuration
+redis:
+  image:
+    repository: redis
+    tag: 7-alpine
+  storage: 1Gi
