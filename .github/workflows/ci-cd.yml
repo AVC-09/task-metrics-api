@@ -23,6 +23,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Debug OIDC Subject Claim
+        run: |
+          echo "Repository Claim enviado por GitHub: repo:${{ github.repository }}:ref:${{ github.ref }}"
+          
       - name: Configure AWS Credentials via OIDC
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v4
