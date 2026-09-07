@@ -1,40 +1,47 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-api-deployment
+  name: {{ .Release.Name }}-api
   labels:
-    app: task-api
+    app: {{ .Release.Name }}-api
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: task-api
+      app: {{ .Release.Name }}-api
   template:
     metadata:
       labels:
-        app: task-api
+        app: {{ .Release.Name }}-api
     spec:
       containers:
-        - name: task-api
-          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
-          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.api.service.port }}
+            - containerPort: 8000
+              name: http
+          
+          # Inyección de las variables a ElastiCache
           env:
             - name: REDIS_HOST
-              value: "redis"
+              value: {{ .Values.env.REDIS_HOST | quote }}
             - name: REDIS_PORT
-              value: "6379"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: task-api-service
-spec:
-  type: {{ .Values.api.service.type }}
-  selector:
-    app: task-api
-  ports:
-    - port: {{ .Values.api.service.port }}
-      targetPort: {{ .Values.api.service.port }}
-      nodePort: {{ .Values.api.service.nodePort }}
+              value: {{ .Values.env.REDIS_PORT | quote }}
+
+          # Health checks
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.path }}
+              port: {{ .Values.probes.liveness.port }}
+            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path }}
+              port: {{ .Values.probes.readiness.port }}
+            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

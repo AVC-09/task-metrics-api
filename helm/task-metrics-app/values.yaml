@@ -1,20 +1,39 @@
-# Global Configuration
-replicaCount: 1
+# helm/task-metrics-app/values.yaml
 
-# API Configuration
-api:
-  image:
-    repository: task-api
-    tag: v1
-    pullPolicy: IfNotPresent
-  service:
-    type: NodePort
+replicaCount: 2
+
+image:
+  # Exact URL of the ECR repository for the Task & Metrics API Docker image
+  repository: 380973360725.dkr.ecr.eu-west-1.amazonaws.com/dev-task-metrics-api
+  pullPolicy: Always
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 8000
+
+env:
+  # Exact URL of the Redis cluster for the Task & Metrics API
+  REDIS_HOST: "dev-task-metrics-redis.wbqe8p.0001.euw1.cache.amazonaws.com"
+  REDIS_PORT: "6379"
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Liveness y Readiness Probes para FastAPI
+probes:
+  liveness:
+    path: /healthz
     port: 8000
-    nodePort: 30080
-
-# Redis Configuration
-redis:
-  image:
-    repository: redis
-    tag: 7-alpine
-  storage: 1Gi
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readiness:
+    path: /healthz
+    port: 8000
+    initialDelaySeconds: 5
+    periodSeconds: 5
