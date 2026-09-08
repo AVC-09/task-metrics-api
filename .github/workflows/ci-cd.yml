@@ -39,7 +39,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::379532675705:role/dev-github-actions-ecr-role
+          role-to-assume: arn:aws:iam::380973360725:role/dev-github-actions-ecr-role
           aws-region: eu-west-1
 
       # Step 5: Authenticate Docker CLI against Amazon ECR Registry (Executes only on pushes to main)
