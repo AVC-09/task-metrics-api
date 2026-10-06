@@ -1,166 +1,134 @@
-# Task & Metrics API (FastAPI + Redis)
+# Task & Metrics API — Application Service
 
-A lightweight, production-ready RESTful API built with **FastAPI** and **Redis**. Fully containerized with **Docker**, deployable to **Kubernetes** (locally via **Kind** or **Helm**), and automated with **GitHub Actions CI**.
-
----
-
-## 🏗️ Architecture & Stack
-
-```text
-               +-------------------------------------------------------+
-               |                  GitHub Actions CI                    |
-               |       (Lint Helm Chart & Build Docker Image)          |
-               +-------------------------------------------------------+
-                                           │
-                                           ▼
-                                [ Local Dev / Kind ]
-                               http://localhost:8000
-                                         │
-                                         ▼
-+---------------------------------------------------------------------------------+
-| Kubernetes Cluster (dev-cluster)                                                |
-|                                                                                 |
-|   +-------------------------------------------------------------------------+   |
-|   | Task API Service (NodePort: 30080 -> Port: 8000)                        |   |
-|   +-------------------------------------------------------------------------+   |
-|                                         │                                       |
-|                                         ▼                                       |
-|   +-------------------+       +--------------------+                            |
-|   | Task API Pod      | ----> | Redis Service      | (ClusterIP: 6379)          |
-|   | (task-api:v1)     |       | (DNS: redis)       |                            |
-|   +-------------------+       +--------------------+                            |
-|                                         │                                       |
-|                                         ▼                                       |
-|                               +--------------------+                            |
-|                               | PersistentVolume   |                            |
-|                               | Claim (redis-pvc)  |                            |
-|                               +--------------------+                            |
-+---------------------------------------------------------------------------------+
-```
+A high-performance RESTful API built with **Python (FastAPI)** for task management and real-time performance metrics tracking. Designed to run natively on **Kubernetes (AWS EKS)** powered by **ARM64 (AWS Graviton)** architecture and backed by **Amazon ElastiCache Redis** for caching.
 
 ---
 
-## ✨ Features
+## 🚀 Key Features
 
-- **Metrics & Persistence:** Total visit counter persisted in Redis across container restarts.
-- **Task Management:** REST endpoints to create, retrieve, and list task IDs.
-- **Input Validation:** Pydantic models preventing empty or whitespace-only titles.
-- **Multi-Stage Docker Build:** Optimized image footprint using `python:3.11-slim`.
-- **Helm Package Management:** Templated K8s manifests for multi-environment deployments (`helm/`).
-- **CI/CD Automation:** GitHub Actions workflow (`ci.yml`) validating Helm syntax and Docker build status on every push.
+- **FastAPI Framework:** Asynchronous, low-latency endpoints with auto-generated OpenAPI documentation (`/docs`).
+- **Caching & Persistence:** Integrated with ElastiCache Redis for read optimization and real-time metrics aggregation.
+- **Multi-Arch Container (ARM64 / Graviton):** Optimized to run on cost-effective AWS Graviton nodes (`m7g`/`c7g`) using a lightweight Python Slim base image.
+- **Health Checks & Observability:** Dedicated Liveness and Readiness probes tailored for Kubernetes cluster integration.
+- **Automated CI/CD:** GitHub Actions pipeline utilizing **OIDC / IRSA** passwordless authentication to build and push images directly to **Amazon ECR**.
 
 ---
 
 ## 🛠️ Tech Stack
 
-* **Language & Framework:** Python 3.11 / FastAPI / Uvicorn
-* **Database:** Redis 7 (In-Memory & Persistent)
-* **Containerization:** Docker & Multi-stage builds
-* **Orchestration:** Docker Compose / Kubernetes (Kind) / Helm v3
-* **CI/CD:** GitHub Actions
+* **Language:** Python 3.11+
+* **Framework:** FastAPI / Uvicorn
+* **Caching:** Redis Client (`redis-py` / `aioredis`)
+* **Containerization:** Docker (`linux/arm64`)
+* **CI/CD:** GitHub Actions (OIDC Federated Auth)
 
 ---
 
-## 🚀 Getting Started
+## 📂 Repository Directory Structure
+
+```text
+task-metrics-api/
+├── app/
+│   ├── api/                # API v1 routes and endpoints
+│   ├── core/               # Global application settings and environment vars
+│   ├── db/                 # ElastiCache Redis connection and client setup
+│   ├── models/             # Data schemas (Pydantic models)
+│   ├── services/           # Business logic
+│   └── main.py             # FastAPI entrypoint
+├── .github/
+│   └── workflows/
+│       └── deploy.yml      # CI/CD Pipeline (OIDC Auth -> Build ARM64 -> Push ECR)
+├── Dockerfile              # Optimized multi-stage build
+├── requirements.txt        # Application dependencies
+└── README.md
+```
+
+## 🔌 API Endpoints
+
+| Method | Route | Description | Kubernetes Probe |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/healthz` | **Liveness Probe:** Verifies the process is alive. | `livenessProbe` |
+| `GET` | `/ready` | **Readiness Probe:** Verifies active connectivity to Redis. | `readinessProbe` |
+| `GET` | `/api/v1/tasks` | Lists tasks (retrieves from Redis cache if available). | - |
+| `POST` | `/api/v1/tasks` | Creates a new task and invalidates/updates cache. | - |
+| `GET` | `/api/v1/metrics` | Retrieves aggregated system metrics. | - |
+
+---
+
+## ⚙️️ Environment Variables
+
+The application is dynamically configured via the following environment variables:
+
+| Variable | Description | Default Value |
+| :--- | :--- | :--- |
+| `APP_ENV` | Execution environment (`development`, `production`). | `production` |
+| `PORT` | Internal port Uvicorn listens on. | `8000` |
+| `REDIS_HOST` | Endpoint for the ElastiCache Redis cluster. | `localhost` |
+| `REDIS_PORT` | Port for the Redis cluster. | `6379` |
+| `LOG_LEVEL` | Logging verbosity (`debug`, `info`, `warning`). | `info` |
+
+---
+
+## 💻 Local Development Setup
 
 ### Prerequisites
-
-- [Docker Desktop](https://www.docker.com/) with WSL 2 integration
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [kind](https://kind.sigs.k8s.io/)
-- [helm](https://helm.sh/docs/intro/install/)
+- Python 3.11+
+- Docker & Docker Compose
+- A local Redis instance (or running container)
 
 ### 1. Clone the repository
 ```bash
-git clone [https://github.com/AVC-09/task-metrics-api.git](https://github.com/AVC-09/task-metrics-api.git)
+git clone [https://github.com/your-username/task-metrics-api.git](https://github.com/your-username/task-metrics-api.git)
 cd task-metrics-api
 ```
 
-### 2. Deploy with Helm (Recommended)
+### 2. Create a virtual environment and install dependencies
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
-1. **Create the Kind cluster:**
-   ```bash
-   kind create cluster --name dev-cluster --config k8s/kind-config.yaml
-   ```
+3. Run Redis locally with Docker
+```bash
+docker run -d --name local-redis -p 6379:6379 redis:alpine
+```
+4. Start the application
+```bash
+export REDIS_HOST="localhost"
+export REDIS_PORT="6379"
+uvicorn app.main:app --reload --port 8000
+```
+Access the interactive OpenAPI documentation at: http://localhost:8000/docs
 
-2. **Build and load the Docker image into Kind:**
-   ```bash
-   docker build -t task-api:v1 .
-   kind load docker-image task-api:v1 --name dev-cluster
-   ```
+## 🐳 Building the Docker Image
 
-3. **Install the Helm Chart:**
-   ```bash
-   helm install my-app ./helm/task-metrics-app
-   ```
+To build the image locally targeting the ARM64 architecture (matching AWS Graviton nodes):
 
-4. **Verify deployment:**
-   ```bash
-   kubectl get pods
-   helm list
-   ```
+```bash
+docker buildx build --platform linux/arm64 -t task-metrics-api:latest .
+```
+
+## 🔄 CI/CD Pipeline (GitHub Actions)
+
+The workflow defined in `.github/workflows/deploy.yml` runs automatically on every `push` to the `main` branch:
+
+```mermaid
+flowchart LR
+    A[Push to main] --> B[OIDC Auth via AWS STS]
+    B --> C[Build ARM64 Docker Image]
+    C --> D[Push to Amazon ECR]
+```
+
+1. **Passwordless Authentication (OIDC):** Assumes an IAM Role in AWS via OpenID Connect without storing long-lived `AWS_ACCESS_KEY_ID` secrets.
+2. **Build & Push:** Compiles the native `linux/arm64` container image using `docker buildx` and pushes it to **Amazon ECR** tagged with the commit SHA.
 
 ---
 
-## 🐳 Alternative Deployment Options
+## 🔮 Next Steps & Future Enhancements
 
-<details>
-<summary><b>Option A: Deploy using Raw Kubernetes Manifests</b></summary>
+The current implementation focuses on core functionality, infrastructure alignment, and container deployment. Planned roadmap improvements include:
 
-#### Deploy
-```bash
-kubectl apply -f k8s/redis.yaml
-kubectl apply -f k8s/api.yaml
-```
-
-#### Cleanup
-```bash
-kubectl delete -f k8s/api.yaml
-kubectl delete -f k8s/redis.yaml
-```
-</details>
-
-<details>
-<summary><b>Option B: Run with Docker Compose</b></summary>
-
-#### Deploy
-```bash
-docker compose up -d
-```
-
-#### Cleanup
-```bash
-# Stop containers and remove volumes (-v)
-docker compose down -v
-```
-</details>
-
----
-
-## 📡 API Endpoints
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/` | Returns API status and total visit metrics |
-| `POST` | `/tasks/` | Creates a new task (Validates non-empty title) |
-| `GET` | `/tasks/` | Lists all existing Task IDs and total count |
-| `GET` | `/tasks/{task_id}` | Retrieves detailed information of a specific task |
-
----
-
-## 🔄 CI/CD Pipeline
-
-The repository includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that automatically triggers on every `push` or `pull_request` to:
-1. Run syntax checks on the Helm Chart (`helm lint`).
-2. Verify that the Docker image builds successfully without errors.
-
----
-
-## 🧹 Cleanup
-
-To uninstall the Helm release and destroy the local cluster:
-
-```bash
-helm uninstall my-app
-kind delete cluster --name dev-cluster
-```
+- [ ] **Automated Testing Suite (Pytest):** Implement unit and integration tests under a `tests/` module, integrating a testing stage into the GitHub Actions pipeline before building images.
+- [ ] **Explicit Graceful Shutdown:** Add a custom FastAPI `lifespan` context manager in `app/main.py` to explicitly intercept `SIGTERM` signals and close active Redis connections gracefully prior to Pod termination.
+- [ ] **Structured Logging & Tracing:** Integrate `structlog` and OpenTelemetry middleware to export APM traces to AWS X-Ray or Datadog.
