@@ -2,7 +2,7 @@
 
 A high-performance RESTful API built with **Python (FastAPI)** for task management and usage tracking. Designed to run natively on **Kubernetes (AWS EKS)** powered by **ARM64 (AWS Graviton)** architecture and backed by **Amazon ElastiCache Redis** for fast data persistence and atomic counters.
 
-> ℹ️ **Infrastructure & Deployment:** The Terraform manifests, VPC topology, EKS cluster configuration, and Helm charts for this service are managed in the [AWS EKS Infrastructure Repository](https://https://github.com/AVC-09/aws-iac-eks).
+> ℹ️ **Infrastructure & Deployment:** The Terraform manifests, VPC topology, EKS cluster configuration, and Helm charts for this service are managed in the [AWS EKS Infrastructure Repository](https://github.com/AVC-09/aws-iac-eks).
 
 ---
 
