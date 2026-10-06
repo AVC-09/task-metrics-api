@@ -27,45 +27,49 @@ A high-performance RESTful API built with **Python (FastAPI)** for task manageme
 ## 📂 Repository Directory Structure
 
 ```text
+```text
 task-metrics-api/
-├── app/
-│   ├── api/                # API v1 routes and endpoints
-│   ├── core/               # Global application settings and environment vars
-│   ├── db/                 # ElastiCache Redis connection and client setup
-│   ├── models/             # Data schemas (Pydantic models)
-│   ├── services/           # Business logic
-│   └── main.py             # FastAPI entrypoint
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml      # CI/CD Pipeline (OIDC Auth -> Build ARM64 -> Push ECR)
-├── Dockerfile              # Optimized multi-stage build
-├── requirements.txt        # Application dependencies
-└── README.md
+│       └── ci-cd.yml         # CI/CD Pipeline (OIDC Auth -> Build ARM64 -> Push ECR)
+├── helm/
+│   └── task-metrics-app/    # Helm chart configuration
+│       ├── templates/        # K8s manifest templates for Helm
+│       ├── Chart.yaml        # Helm chart metadata
+│       └── values.yaml       # Helm default values configuration
+├── k8s/                      # Raw Kubernetes manifests & local dev setup
+│   ├── api.yaml              # App Deployment & Service manifests
+│   ├── kind-config.yaml      # KinD cluster configuration for local testing
+│   └── redis.yaml            # Redis Deployment & Service manifests
+├── .gitignore
+├── docker-compose.yml        # Local multi-container environment (API + Redis)
+├── Dockerfile                # Multi-stage container build
+├── main.py                   # FastAPI entrypoint application
+├── README.md
+└── requirements.txt          # Python dependencies
 ```
 
 ## 🔌 API Endpoints
 
 | Method | Route | Description | Kubernetes Probe |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/healthz` | **Liveness Probe:** Verifies the process is alive. | `livenessProbe` |
-| `GET` | `/ready` | **Readiness Probe:** Verifies active connectivity to Redis. | `readinessProbe` |
-| `GET` | `/api/v1/tasks` | Lists tasks (retrieves from Redis cache if available). | - |
-| `POST` | `/api/v1/tasks` | Creates a new task and invalidates/updates cache. | - |
-| `GET` | `/api/v1/metrics` | Retrieves aggregated system metrics. | - |
+| `GET` | `/healthz` | **Liveness & Readiness Probe:** Validates API health and verifies active connection to Redis using `PING`. | `livenessProbe` / `readinessProbe` |
+| `GET` | `/` | **Root Endpoint:** Serves a welcome message and tracks aggregate visits using an atomic Redis counter (`total_visits`). | - |
+| `POST` | `/tasks/` | Creates a new task in Redis using a Hash key (`task:{id}`) and auto-incrementing ID. Validates non-blank titles. | - |
+| `GET` | `/tasks/` | Retrieves a list of all existing Task IDs using a non-blocking `SCAN` iteration (`scan_iter`). | - |
+| `GET` | `/tasks/{task_id}` | Fetches a specific task's details (`title` and `description`) by its ID from Redis. Returns `404` if not found. | - |
 
 ---
 
-## ⚙️️ Environment Variables
+## ⚙️ Environment Variables
 
 The application is dynamically configured via the following environment variables:
 
 | Variable | Description | Default Value |
 | :--- | :--- | :--- |
-| `APP_ENV` | Execution environment (`development`, `production`). | `production` |
-| `PORT` | Internal port Uvicorn listens on. | `8000` |
-| `REDIS_HOST` | Endpoint for the ElastiCache Redis cluster. | `localhost` |
-| `REDIS_PORT` | Port for the Redis cluster. | `6379` |
-| `LOG_LEVEL` | Logging verbosity (`debug`, `info`, `warning`). | `info` |
+| `REDIS_HOST` | Endpoint / hostname for the Redis database or ElastiCache cluster. | `localhost` |
+| `REDIS_PORT` | Port for the Redis service. | `6379` |
+| `REDIS_SSL` | Enables SSL/TLS connection to Redis (useful for ElastiCache with in-transit encryption). Accepts `true` or `false`. | `false` |
 
 ---
 
@@ -78,7 +82,7 @@ The application is dynamically configured via the following environment variable
 
 ### 1. Clone the repository
 ```bash
-git clone [https://github.com/your-username/task-metrics-api.git](https://github.com/your-username/task-metrics-api.git)
+git clone https://github.com/AVC-09/task-metrics-api.git
 cd task-metrics-api
 ```
 
