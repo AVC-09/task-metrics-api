@@ -93,11 +93,11 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-3. Run Redis locally with Docker
+### 3. Run Redis locally with Docker
 ```bash
 docker run -d --name local-redis -p 6379:6379 redis:alpine
 ```
-4. Start the application
+### 4. Start the application
 ```bash
 export REDIS_HOST="localhost"
 export REDIS_PORT="6379"
